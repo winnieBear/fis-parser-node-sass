@@ -10,6 +10,7 @@ var path = require('path');
 var sass = require('node-sass');
 var util = require('util');
 var root;
+var arrSasHas;
 
 function resolve_and_load(filename, dir) {
     // Resolution order for ambiguous imports:
@@ -101,8 +102,8 @@ module.exports = function(content, file, conf){
     // 不处理空文件，处理空文件有人反馈报错。
     if (!content || !content.trim() || file.basename[0] === '_') {
         return content;
-    }
-
+    }    
+    arrSasHas = [];
     // sass 对 unicode 字符处理有 bug, 所以这里先用这种方法 解决下。
     var backups = {};
     var backupId = 0;
@@ -178,16 +179,25 @@ module.exports = function(content, file, conf){
         if (file.cache) {
             file.cache.addDeps(target.realpath);
         }
+        var targetSubPath = target.subpath;
         //解决include_path 内import导致subpath为空报错问题
-        if(!target.subpath){
-            target.subpath = path.relative(root, target.realpath);
+        if(!targetSubPath){
+            targetSubPath = path.relative(root, target.realpath);
         }
-        ~sources.indexOf(target.subpath) || sources.push(target.subpath);
+        ~sources.indexOf(targetSubPath) || sources.push(targetSubPath);
+
+        //如果以及import过来，不用重复import了
+        if(~arrSasHas.indexOf(targetSubPath)){
+            content = '';
+            targetSubPath = targetSubPath+'_have_imported';
+        }else{
+            arrSasHas.push(targetSubPath);
+        }
 
         return {
-            file: target.subpath,
+            file: targetSubPath,
             contents: content
-        };
+	};
     };
 
     if (opts.sourceMap) {
